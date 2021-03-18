@@ -6,6 +6,7 @@ typedef struct {
     unsigned long long retiredMemoryInstructions;
     unsigned long long dataCacheMisses;
     unsigned long long dataCacheBusyEvents;
+    unsigned long long time;
 } Sample;
 
 void configureEvents();

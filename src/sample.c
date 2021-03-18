@@ -7,34 +7,34 @@
 #define EVENT_DATA_CACHE_BUSY EVENT_BIT_DATA_CACHE_BUSY
 #define EVENT_DATA_CACHE_MISS EVENT_BIT_DATA_CACHE_MISS
 
-#define read_csr_safe(reg) ({unsigned long long __tmp; asm volatile ("csrr %0, " #reg : "=r"(__tmp)); __tmp;})
-#define write_csr_safe(reg, val) asm volatile ("csrw " #reg ", %0" :: "r" (val))
-
-#define SAMPLE_COUNT_EVENTS(counter, hwcounter) \
-    counter = read_csr_safe(hwcounter)
+#define READ_CSR(reg) ({unsigned long long __tmp; asm volatile ("csrr %0, " #reg : "=r"(__tmp)); __tmp;})
+#define WRITE_CSR(reg, val) asm volatile ("csrw " #reg ", %0" :: "r" (val))
 
 void configureEvents() {
-    write_csr_safe(mhpmevent3, EVENT_MEM_INSTR_RETIRED);
-    write_csr_safe(mhpmevent4, EVENT_DATA_CACHE_MISS);
+    WRITE_CSR(mhpmevent3, EVENT_MEM_INSTR_RETIRED);
+    WRITE_CSR(mhpmevent4, EVENT_DATA_CACHE_MISS);
 }
 
 void beginSample(Sample *sample) {
-    write_csr_safe(mhpmcounter3, 0);
-    write_csr_safe(mhpmcounter4, 0);
-    write_csr_safe(instret, 0);
-    write_csr_safe(cycle, 0);
+    WRITE_CSR(mhpmcounter3, 0);
+    WRITE_CSR(mhpmcounter4, 0);
+    WRITE_CSR(instret, 0);
+    WRITE_CSR(cycle, 0);
+    sample->time = READ_CSR(time);
 }
 
 void endSample(Sample *sample) {
-    SAMPLE_COUNT_EVENTS(sample->cycles, cycle);
-    SAMPLE_COUNT_EVENTS(sample->retiredInstructions, instret);
-    SAMPLE_COUNT_EVENTS(sample->retiredMemoryInstructions, mhpmcounter3);
-    SAMPLE_COUNT_EVENTS(sample->dataCacheMisses, mhpmcounter4);
+    sample->cycles = READ_CSR(cycle);
+    sample->retiredInstructions = READ_CSR(instret);
+    sample->retiredMemoryInstructions = READ_CSR(mhpmcounter3);
+    sample->dataCacheMisses = READ_CSR(mhpmcounter4);
+    sample->time = READ_CSR(time) - sample->time;
 }
 
 void printSamples(FILE *fd, unsigned int sampleCount, Sample *samples) {
-    fprintf(fd, "Cycles, Retired Instructions, Retired Memory Instructions, "
-                "Data Cache Misses, Instructions Per Cycle, Miss Percentage\n");
+    fprintf(fd, "Cycles, Time Elapsed (us), Retired Instructions, "
+                "Retired Memory Instructions, Data Cache Misses, "
+                "Instructions Per Cycle, Miss Percentage\n");
 
     for (unsigned int i = 0; i < sampleCount; i++) {
         Sample *sample = &samples[i];
@@ -43,12 +43,10 @@ void printSamples(FILE *fd, unsigned int sampleCount, Sample *samples) {
         float missrate =
             sample->dataCacheMisses / (float) sample->retiredMemoryInstructions;
 
-        fprintf(fd, "%llu, %llu, %llu, %llu, %f, %f\n",
-                sample->cycles,
-                sample->retiredInstructions,
-                sample->retiredMemoryInstructions,
+        fprintf(fd, "%llu, %llu, %llu, %llu, %llu, %f, %f\n",
+                sample->cycles, sample->time * TIME_TO_US,
+                sample->retiredInstructions, sample->retiredMemoryInstructions,
                 sample->dataCacheMisses,
-                ipc,
-                100.0f * missrate);
+                ipc, 100.0f * missrate);
     }
 }

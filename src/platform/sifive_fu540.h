@@ -1,4 +1,6 @@
-// ~~~ SiFive FU540 specific events ~~~
+// ~~~ SiFive FU540 specific values ~~~
+
+// ~~ PMU Events ~~
 
 // Instruction commit events
 #define EVENT_BIT_INT_LOAD_RETIRED  (1 << 9)
@@ -11,3 +13,6 @@
 
 // Memory system events
 #define EVENT_BIT_DATA_CACHE_MISS ((1 << 9) | (2 & 0xFF))
+
+// ~~ RTC Clock Multiplier ~~
+#define TIME_TO_US 1
