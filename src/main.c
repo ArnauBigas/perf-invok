@@ -109,6 +109,8 @@ int main(int argc, char **argv) {
         setBreakpoint(pid, addrStart, &bp);
         ptrace(PTRACE_CONT, pid, 0, 0);
 
+        configureEvents();
+
         while (waitpid(pid, &status, 0) != -1 && sampleCount < maxSamples) {
             resetBreakpoint(pid, &bp);
             setBreakpoint(pid, addrEnd, &bp);
