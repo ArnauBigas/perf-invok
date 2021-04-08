@@ -121,10 +121,10 @@ int main(int argc, char **argv) {
             resetBreakpoint(pid, &bp);
             setBreakpoint(pid, addrEnd, &bp);
 
-            beginSample(&samples[sampleCount]);
+            beginSample(&samples[sampleCount - flushedSampleCount]);
             ptrace(PTRACE_CONT, pid, 0, 0);
             waitpid(pid, &status, 0);
-            endSample(&samples[sampleCount]);
+            endSample(&samples[sampleCount - flushedSampleCount]);
 
             sampleCount++;
 
@@ -132,8 +132,7 @@ int main(int argc, char **argv) {
                 printSamples(outputFile, sampleCount - flushedSampleCount,
                              samples, printHeaders);
                 printHeaders = 0;
-                flushedSampleCount += sampleCount;
-                sampleCount = 0;
+                flushedSampleCount += MAX_SAMPLES;
             }
 
             resetBreakpoint(pid, &bp);
@@ -143,7 +142,8 @@ int main(int argc, char **argv) {
 
         if (sampleCount == maxSamples) kill(pid, SIGTERM);
 
-        printSamples(outputFile, sampleCount, samples, printHeaders);
+        printSamples(outputFile, sampleCount - flushedSampleCount, samples,
+                     printHeaders);
 
         if (outputFile != stderr) fclose(outputFile);
 
