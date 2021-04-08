@@ -111,7 +111,8 @@ int main(int argc, char **argv) {
 
         configureEvents();
 
-        while (waitpid(pid, &status, 0) != -1 && sampleCount < maxSamples) {
+        while (waitpid(pid, &status, 0) != -1 && sampleCount < maxSamples &&
+               !WIFEXITED(status)) {
             resetBreakpoint(pid, &bp);
             setBreakpoint(pid, addrEnd, &bp);
 
