@@ -31,10 +31,14 @@ void endSample(Sample *sample) {
     sample->time = READ_CSR(time) - sample->time;
 }
 
-void printSamples(FILE *fd, unsigned int sampleCount, Sample *samples) {
-    fprintf(fd, "Cycles, Time Elapsed (us), Retired Instructions, "
-                "Retired Memory Instructions, Data Cache Misses, "
-                "Instructions Per Cycle, Miss Percentage\n");
+void printSamples(FILE *fd, unsigned int sampleCount, Sample *samples,
+                  int printHeaders) {
+
+    if (printHeaders) {
+        fprintf(fd, "Cycles, Time Elapsed (us), Retired Instructions, "
+                    "Retired Memory Instructions, Data Cache Misses, "
+                    "Instructions Per Cycle, Miss Percentage\n");
+    }
 
     for (unsigned int i = 0; i < sampleCount; i++) {
         Sample *sample = &samples[i];

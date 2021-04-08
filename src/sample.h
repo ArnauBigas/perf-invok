@@ -12,4 +12,5 @@ typedef struct {
 void configureEvents();
 void beginSample(Sample *sample);
 void endSample(Sample *sample);
-void printSamples(FILE *fd, unsigned int sampleCount, Sample *samples);
+void printSamples(FILE *fd, unsigned int sampleCount, Sample *samples,
+                  int printHeaderes);

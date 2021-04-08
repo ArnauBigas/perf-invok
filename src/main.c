@@ -19,10 +19,12 @@
 int pid;
 Sample samples[MAX_SAMPLES];
 unsigned int sampleCount = 0;
+unsigned int flushedSampleCount = 0;
+int printHeaders = 1;
 
 void handler(int signum) {
     kill(pid, signum);
-    printSamples(stderr, sampleCount, samples);
+    printSamples(stderr, sampleCount - flushedSampleCount, samples, 1);
     exit(-1);
 }
 
@@ -94,6 +96,9 @@ int main(int argc, char **argv) {
         ptrace(PTRACE_TRACEME, 0, 0, 0);
         execvp(argv[programStart], newargs);
     } else {
+        FILE *outputFile = (output != NULL ? fopen(output, "w") : stderr);
+        assert(outputFile != NULL);
+
         struct sigaction sa;
         sa.sa_handler = handler;
         sigemptyset(&sa.sa_mask);
@@ -119,7 +124,17 @@ int main(int argc, char **argv) {
             beginSample(&samples[sampleCount]);
             ptrace(PTRACE_CONT, pid, 0, 0);
             waitpid(pid, &status, 0);
-            endSample(&samples[sampleCount++]);
+            endSample(&samples[sampleCount]);
+
+            sampleCount++;
+
+            if (sampleCount == MAX_SAMPLES) {
+                printSamples(outputFile, sampleCount - flushedSampleCount,
+                             samples, printHeaders);
+                printHeaders = 0;
+                flushedSampleCount += sampleCount;
+                sampleCount = 0;
+            }
 
             resetBreakpoint(pid, &bp);
             setBreakpoint(pid, addrStart, &bp);
@@ -128,10 +143,7 @@ int main(int argc, char **argv) {
 
         if (sampleCount == maxSamples) kill(pid, SIGTERM);
 
-        FILE *outputFile = (output != NULL ? fopen(output, "w") : stderr);
-        assert(outputFile != NULL);
-
-        printSamples(outputFile, sampleCount, samples);
+        printSamples(outputFile, sampleCount, samples, printHeaders);
 
         if (outputFile != stderr) fclose(outputFile);
 
