@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
 
             sampleCount++;
 
-            if (sampleCount == MAX_SAMPLES) {
+            if (sampleCount % MAX_SAMPLES == 0) {
                 printSamples(outputFile, sampleCount - flushedSampleCount,
                              samples, printHeaders);
                 printHeaders = 0;
