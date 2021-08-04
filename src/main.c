@@ -38,7 +38,7 @@ void handler(int signum) {
     exit(-1);
 }
 
-void perInvocationPerformance(unsigned long long addrStart,
+int perInvocationPerformance(unsigned long long addrStart,
                               unsigned long long addrEnd,
                               unsigned int maxSamples,
                               FILE *outputFile) {
@@ -77,6 +77,8 @@ void perInvocationPerformance(unsigned long long addrStart,
     }
 
     if (sampleCount == maxSamples) kill(pid, SIGTERM);
+
+    return 0;
 }
 
 void globalPerformance(unsigned int timeout) {
@@ -186,7 +188,7 @@ int main(int argc, char **argv) {
 
         if (addrStart > 0 && addrEnd > 0) {
             printf("Measuring performance counters from 0x%llx to 0x%llx (max. samples: %u).\n", addrStart, addrEnd, maxSamples);
-            perInvocationPerformance(addrStart, addrEnd, maxSamples, outputFile);
+            status = perInvocationPerformance(addrStart, addrEnd, maxSamples, outputFile);
         } else {
             printf("Measuring performance counters from global execution\n");
             globalPerformance(timeout);
