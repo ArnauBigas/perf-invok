@@ -181,10 +181,10 @@ int main(int argc, char **argv) {
         sigaction(SIGINT, &sa, NULL);
         sigaction(SIGALRM, &sa, NULL);
 
-        configureEvents();
-
         int status;
         waitpid(pid, &status, 0); // Wait for child to start
+
+        configureEvents(pid);
 
         if (addrStart > 0 && addrEnd > 0) {
             printf("Measuring performance counters from 0x%llx to 0x%llx (max. samples: %u).\n", addrStart, addrEnd, maxSamples);

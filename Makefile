@@ -1,12 +1,16 @@
 INSTALLDIR ?= /bin
 
+ifeq ($(cat /proc/cpuinfo | grep "uarch" | head -n 1 | cut -d" " -f 2),"sifive,u54-mc")
+	PERF_INVOK_PLATFORM_SIFIVE_FU540=1
+endif
+
 .PHONY: clean
 
-rvperf: src/main.c src/sample.c src/breakpoint.c
-	gcc -g -o rvperf src/main.c src/sample.c src/breakpoint.c
+perf-invok: src/main.c src/sample.c src/breakpoint.c
+	gcc -g -o perf-invok src/main.c src/sample.c src/breakpoint.c
 
-install: rvperf
-	cp rvperf $(INSTALLDIR)/rvperf
+install: perf-invok
+	cp perf-invok $(INSTALLDIR)/perf-invok
 
 clean:
-	rm -rf rvperf
+	rm -rf perf-invok

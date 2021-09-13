@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 
 typedef struct {
     unsigned long long retiredInstructions;
@@ -9,7 +10,7 @@ typedef struct {
     unsigned long long time;
 } Sample;
 
-void configureEvents();
+void configureEvents(pid_t pid);
 void beginSample(Sample *sample);
 void endSample(Sample *sample);
 void printSamples(FILE *fd, unsigned int sampleCount, Sample *samples,
