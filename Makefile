@@ -6,6 +6,8 @@ endif
 
 .PHONY: clean
 
+all: perf-invok
+
 perf-invok: src/main.c src/sample.c src/breakpoint.c
 	gcc ${CFLAGS} -o perf-invok src/main.c src/sample.c src/breakpoint.c
 
