@@ -13,6 +13,7 @@
 
 #include "breakpoint.h"
 #include "sample.h"
+#include "debug.h"
 
 #define MAX_SAMPLES 8192
 
@@ -50,16 +51,24 @@ int perInvocationPerformance(unsigned long long addrStart,
 
     while (waitpid(pid, &status, 0) != -1 && sampleCount < maxSamples &&
            !WIFEXITED(status)) {
+        if (WIFSTOPPED(status)) {
+            debug_print("%s\n", strsignal(WSTOPSIG(status)));
+        }
         resetBreakpoint(pid, &bp);
         setBreakpoint(pid, addrEnd, &bp);
 
+        debug_print("Start sample %d\n", sampleCount);
         beginSample(&samples[sampleCount - flushedSampleCount]);
         sampleInProgress = 1;
 
         ptrace(PTRACE_CONT, pid, 0, 0);
         waitpid(pid, &status, 0);
-
+        if (WIFSTOPPED(status)) {
+            debug_print("%s\n", strsignal(WSTOPSIG(status)));
+        }
         sampleInProgress = 0;
+
+        debug_print("End sample %d\n", sampleCount);
         endSample(&samples[sampleCount - flushedSampleCount]);
 
         sampleCount++;

@@ -9,6 +9,9 @@ endif
 perf-invok: src/main.c src/sample.c src/breakpoint.c
 	gcc ${CFLAGS} -o perf-invok src/main.c src/sample.c src/breakpoint.c
 
+debug: src/main.c src/sample.c src/breakpoint.c src/debug.h
+	gcc ${CFLAGS} -DDEBUG_MODE -o perf-invok src/main.c src/sample.c src/breakpoint.c
+
 install: perf-invok
 	cp perf-invok $(INSTALLDIR)/perf-invok
 
