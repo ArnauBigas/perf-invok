@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <limits.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "breakpoint.h"
 #include "sample.h"
@@ -26,7 +27,8 @@ int sampleInProgress = 1;
 FILE *outputFile;
 
 void handler(int signum) {
-    kill(pid, signum);
+    int ret = kill(pid, signum);
+    if (ret != 0) { perror("ERROR killing process"); exit(EXIT_FAILURE);};
 
     if (sampleInProgress) {
         endSample(&samples[sampleCount - flushedSampleCount]);
@@ -35,8 +37,11 @@ void handler(int signum) {
 
     printSamples(outputFile, sampleCount - flushedSampleCount, samples, printHeaders);
 
-    if (outputFile != stderr) fclose(outputFile);
-    exit(-1);
+    if (outputFile != stderr) {
+        ret = fclose(outputFile);
+        if (ret != 0) { perror("ERROR closing file"); exit(EXIT_FAILURE);};
+    }
+    exit(EXIT_FAILURE);
 }
 
 int perInvocationPerformance(unsigned long long addrStart,
@@ -47,7 +52,8 @@ int perInvocationPerformance(unsigned long long addrStart,
     Breakpoint bp;
 
     setBreakpoint(pid, addrStart, &bp);
-    ptrace(PTRACE_CONT, pid, 0, 0);
+    long ret = ptrace(PTRACE_CONT, pid, 0, 0);
+    if (ret != 0) { perror("ERROR on initial tracing"); exit(EXIT_FAILURE);};
 
     while (waitpid(pid, &status, 0) != -1 && sampleCount < maxSamples &&
            !WIFEXITED(status)) {
@@ -69,8 +75,10 @@ int perInvocationPerformance(unsigned long long addrStart,
             }
         }
         #endif
-        ptrace(PTRACE_CONT, pid, 0, 0);
-        waitpid(pid, &status, 0);
+        ret = ptrace(PTRACE_CONT, pid, 0, 0);
+        if (ret != 0) { perror("ERROR during tracing"); exit(EXIT_FAILURE);};
+        ret = waitpid(pid, &status, 0);
+        if (ret == -1) { perror("ERROR during waiting"); exit(EXIT_FAILURE);};
         if (WIFSTOPPED(status)) {
             debug_print("%s\n", strsignal(WSTOPSIG(status)));
         }
@@ -98,7 +106,8 @@ int perInvocationPerformance(unsigned long long addrStart,
             }
         }
         #endif
-        ptrace(PTRACE_CONT, pid, 0, 0);
+        ret = ptrace(PTRACE_CONT, pid, 0, 0);
+        if (ret != 0) { perror("ERROR during next tracing"); exit(EXIT_FAILURE);};
     }
 
     if (sampleCount == maxSamples) kill(pid, SIGTERM);
@@ -112,8 +121,10 @@ int globalPerformance(unsigned int timeout) {
     sampleInProgress = 1;
 
     ptrace(PTRACE_CONT, pid, 0, 0);
-    alarm(timeout);
-    waitpid(pid, &status, 0);
+    unsigned ret = alarm(timeout);
+    if (ret != 0) { perror("ERROR while setting timeout"); exit(EXIT_FAILURE);};
+    ret = waitpid(pid, &status, 0);
+    if (ret == -1) { perror("ERROR while waiting"); exit(EXIT_FAILURE);};
 
     sampleInProgress = 0;
     endSample(&samples[0]);
@@ -186,30 +197,38 @@ int main(int argc, char **argv) {
     cpu_set_t mask;
     CPU_ZERO(&mask);
     CPU_SET(1, &mask);
-    sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+    int ret = sched_setaffinity(0, sizeof(cpu_set_t), &mask);
+    if (ret != 0) { perror("ERROR while setting affinity"); exit(EXIT_FAILURE);};
 
     if (pid == 0) {
         unsigned int numParams = argc - 3;
         char **newargs = malloc(sizeof(char*) * (numParams + 2));
+        if (newargs == NULL) { perror("ERROR copying args"); exit(EXIT_FAILURE);};
         memcpy(newargs, &argv[programStart], sizeof(char*) * (numParams + 1));
         newargs[numParams + 1] = NULL;
-        ptrace(PTRACE_TRACEME, 0, 0, 0);
-        execvp(argv[programStart], newargs);
+        long ret = ptrace(PTRACE_TRACEME, 0, 0, 0);
+        if (ret != 0) { perror("ERROR setting traced process"); exit(EXIT_FAILURE);};
+        ret = execvp(argv[programStart], newargs);
+        if (ret != 0) { perror("ERROR executing process"); exit(EXIT_FAILURE);};
     } else {
         outputFile = (output != NULL ? fopen(output, "w") : stderr);
         assert(outputFile != NULL);
 
         struct sigaction sa;
         sa.sa_handler = handler;
-        sigemptyset(&sa.sa_mask);
+        int ret = sigemptyset(&sa.sa_mask);
+        if (ret != 0) { perror("ERROR setting empty signals"); exit(EXIT_FAILURE);};
         sa.sa_flags = 0;
-        sigaction(SIGKILL, &sa, NULL);
-        sigaction(SIGTERM, &sa, NULL);
-        sigaction(SIGINT, &sa, NULL);
-        sigaction(SIGALRM, &sa, NULL);
+        ret = sigaction(SIGTERM, &sa, NULL);
+        if (ret != 0) { perror("ERROR setting SIGTERM"); exit(EXIT_FAILURE);};
+        ret = sigaction(SIGINT, &sa, NULL);
+        if (ret != 0) { perror("ERROR setting SIGINT"); exit(EXIT_FAILURE);};
+        ret = sigaction(SIGALRM, &sa, NULL);
+        if (ret != 0) { perror("ERROR setting SIALRM"); exit(EXIT_FAILURE);};
 
         int status;
-        waitpid(pid, &status, 0); // Wait for child to start
+        ret = waitpid(pid, &status, 0); // Wait for child to start
+        if (ret == -1) { perror("ERROR waiting child to start"); exit(EXIT_FAILURE);};
 
         configureEvents(pid);
 
@@ -224,8 +243,10 @@ int main(int argc, char **argv) {
         printSamples(outputFile, sampleCount - flushedSampleCount, samples,
                      printHeaders);
 
-        if (outputFile != stderr) fclose(outputFile);
-
+        if (outputFile != stderr)  {
+            ret = fclose(outputFile);
+            if (ret != 0) { perror("ERROR closing file"); exit(EXIT_FAILURE);};
+        }
         return status;
     }
 }

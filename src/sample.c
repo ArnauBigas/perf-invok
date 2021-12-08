@@ -1,5 +1,7 @@
 #include "sample.h"
 #include "debug.h"
+#include "errno.h"
+#include <stdlib.h>
 
 #ifdef PERF_INVOK_PLATFORM_SIFIVE_FU540
 
@@ -64,14 +66,18 @@ void configureEvents(pid_t pid) {
     attributes.config = PERF_COUNT_HW_CPU_CYCLES;
     attributes.type = PERF_TYPE_HARDWARE;
     fdCycles = syscall(__NR_perf_event_open, &attributes, pid, -1, -1, 0);
-    ioctl(fdCycles, PERF_EVENT_IOC_ID, &idCycles);
+    if (fdCycles == -1) { perror("ERROR while setting PERF_COUNT_HW_CPU_CYCLES"); exit(EXIT_FAILURE); };
+    int ret = ioctl(fdCycles, PERF_EVENT_IOC_ID, &idCycles);
+    if (ret == -1) { perror("ERROR while getting PERF_COUNT_HW_CPU_CYCLES event id"); exit(EXIT_FAILURE); };
 
     debug_print("Configuring PERF_COUNT_HW_INSTRUCTIONS\n");
     attributes.config = PERF_COUNT_HW_INSTRUCTIONS;
     attributes.type = PERF_TYPE_HARDWARE;
     fdInstructions =
         syscall(__NR_perf_event_open, &attributes, pid, -1, fdCycles, 0);
-    ioctl(fdInstructions, PERF_EVENT_IOC_ID, &idInstructions);
+    if (fdInstructions == -1) { perror("ERROR while setting PERF_COUNT_HW_INSTRUCTIONS"); exit(EXIT_FAILURE); };
+    ret = ioctl(fdInstructions, PERF_EVENT_IOC_ID, &idInstructions);
+    if (ret == -1) { perror("ERROR while getting PERF_COUNT_HW_INSTRUCTIONS event id"); exit(EXIT_FAILURE); };
 
     debug_print("Configuring PERF_COUNT_HW_CACHE_L1D:READ:ACCESS\n");
     attributes.config = PERF_COUNT_HW_CACHE_L1D
@@ -80,7 +86,12 @@ void configureEvents(pid_t pid) {
     attributes.type = PERF_TYPE_HW_CACHE;
     fdMemoryLoads =
         syscall(__NR_perf_event_open, &attributes, pid, -1, fdCycles, 0);
-    ioctl(fdMemoryLoads, PERF_EVENT_IOC_ID, &idMemoryLoads);
+    if (fdMemoryLoads == -1) {
+        perror("WARNING: Unable to set PERF_COUNT_HW_CACHE_L1D:READ:ACCESS");
+    } else {
+        ret = ioctl(fdMemoryLoads, PERF_EVENT_IOC_ID, &idMemoryLoads);
+        if (ret == -1) { perror("ERROR while getting PERF_COUNT_HW_CACHE_L1D:READ:ACCESS event id"); exit(EXIT_FAILURE); }
+    }
 
     debug_print("Configuring PERF_COUNT_HW_CACHE_L1D:WRITE:ACCESS\n");
     attributes.config = PERF_COUNT_HW_CACHE_L1D
@@ -89,7 +100,12 @@ void configureEvents(pid_t pid) {
     attributes.type = PERF_TYPE_HW_CACHE;
     fdMemoryWrites =
         syscall(__NR_perf_event_open, &attributes, pid, -1, fdCycles, 0);
-    ioctl(fdMemoryWrites, PERF_EVENT_IOC_ID, &idMemoryWrites);
+    if (fdMemoryWrites == -1) {
+        perror("WARNING: Unable to set PERF_COUNT_HW_CACHE_L1D:WRITE:ACCESS");
+    } else {
+        ret = ioctl(fdMemoryWrites, PERF_EVENT_IOC_ID, &idMemoryWrites);
+        if (ret == -1) { perror("ERROR while getting PERF_COUNT_HW_CACHE_L1D:WRITE:ACCESS event id"); exit(EXIT_FAILURE); }
+    }
 
     debug_print("Configuring PERF_COUNT_HW_CACHE_L1D:READ:MISS\n");
     attributes.config = PERF_COUNT_HW_CACHE_L1D
@@ -98,7 +114,12 @@ void configureEvents(pid_t pid) {
     attributes.type = PERF_TYPE_HW_CACHE;
     fdMemoryReadMisses =
         syscall(__NR_perf_event_open, &attributes, pid, -1, fdCycles, 0);
-    ioctl(fdMemoryReadMisses, PERF_EVENT_IOC_ID, &idMemoryReadMisses);
+    if (fdMemoryReadMisses == -1) {
+        perror("WARNING: Unable to set PERF_COUNT_HW_CACHE_L1D:READ:MISS");
+    } else {
+        ret = ioctl(fdMemoryReadMisses, PERF_EVENT_IOC_ID, &idMemoryReadMisses);
+        if (ret == -1) { perror("ERROR while getting PERF_COUNT_HW_CACHE_L1D:READ:MISS event id"); exit(EXIT_FAILURE); }
+    }
 
     debug_print("Configuring PERF_COUNT_HW_CACHE_L1D:WRITE:MISS\n");
     attributes.config = PERF_COUNT_HW_CACHE_L1D
@@ -107,7 +128,12 @@ void configureEvents(pid_t pid) {
     attributes.type = PERF_TYPE_HW_CACHE;
     fdMemoryWriteMisses =
         syscall(__NR_perf_event_open, &attributes, pid, -1, fdCycles, 0);
-    ioctl(fdMemoryWriteMisses, PERF_EVENT_IOC_ID, &idMemoryWriteMisses);
+    if (fdMemoryWriteMisses == -1) {
+        perror("WARNING: Unable to set PERF_COUNT_HW_CACHE_L1D:WRITE:MISS");
+    } else {
+        ret = ioctl(fdMemoryWriteMisses, PERF_EVENT_IOC_ID, &idMemoryWriteMisses);
+        if (ret == -1) { perror("ERROR while getting PERF_COUNT_HW_CACHE_L1D:WRITE:MISS event id"); exit(EXIT_FAILURE); }
+    }
 
 #endif
 
