@@ -188,9 +188,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("Executing ");
-    for (int i = programStart; i < argc; i++) printf("%s ", argv[i]);
-    printf("\n");
+    fprintf(stderr, "Executing ");
+    for (int i = programStart; i < argc; i++) fprintf(stderr, "%s ", argv[i]);
+    fprintf(stderr, "\n");
 
     pid = fork();
 
@@ -233,10 +233,10 @@ int main(int argc, char **argv) {
         configureEvents(pid);
 
         if (addrStart > 0 && addrEnd > 0) {
-            printf("Measuring performance counters from 0x%llx to 0x%llx (max. samples: %u).\n", addrStart, addrEnd, maxSamples);
+            fprintf(stderr, "Measuring performance counters from 0x%llx to 0x%llx (max. samples: %u).\n", addrStart, addrEnd, maxSamples);
             status = perInvocationPerformance(addrStart, addrEnd, maxSamples, outputFile);
         } else {
-            printf("Measuring performance counters from global execution\n");
+            fprintf(stderr, "Measuring performance counters from global execution\n");
             status = globalPerformance(timeout);
         }
 
