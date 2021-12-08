@@ -11,12 +11,12 @@ void setBreakpoint(unsigned long pid, unsigned long long address,
     breakpoint->address = address;
     breakpoint->originalData = ptrace(PTRACE_PEEKDATA, pid, address, 0);
 
-    debug_print("setBreakpoint 0x%016X to 0x%08X (orig 0x%08X)\n", address, 0, breakpoint->originalData);
+    debug_print("setBreakpoint 0x%016llX to 0x%08X (orig 0x%08llX)\n", address, 0, breakpoint->originalData);
     ptrace(PTRACE_POKEDATA, pid, address, 0);
 }
 
 void resetBreakpoint(unsigned long pid, Breakpoint *breakpoint) {
-    debug_print("resetBreakpoint 0x%016X to 0x%08X\n", breakpoint->address, breakpoint->originalData);
+    debug_print("resetBreakpoint 0x%016llX to 0x%08llX\n", breakpoint->address, breakpoint->originalData);
     ptrace(PTRACE_POKEDATA, pid, breakpoint->address, breakpoint->originalData);
 }
 
@@ -27,12 +27,12 @@ void displace_pc(long pid, long displ) {
     iov.iov_len = sizeof(buf);
     iov.iov_base = buf;
 
-    long ret = ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov);
+    ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov);
     long pc = buf[1];
 
-	debug_print("displace_pc from 0x%016X to 0x%016X\n", pc, pc + displ);
+	debug_print("displace_pc from 0x%016lX to 0x%016lX\n", pc, pc + displ);
 
     buf[1] = pc + displ;
-    ret = ptrace(PTRACE_SETREGSET, pid, NT_PRSTATUS, &iov);
+    ptrace(PTRACE_SETREGSET, pid, NT_PRSTATUS, &iov);
 }
 #endif

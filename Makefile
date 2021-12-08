@@ -1,5 +1,5 @@
 INSTALLDIR ?= /bin
-
+CFLAGS ?= -O3 -Wall -Werror -pedantic -flto
 ifeq ($(shell cat /proc/cpuinfo | grep "uarch" | head -n 1 | cut -d" " -f 2),sifive,u54-mc)
 CFLAGS := ${CFLAGS} -DPERF_INVOK_PLATFORM_SIFIVE_FU540
 endif
