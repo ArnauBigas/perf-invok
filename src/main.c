@@ -81,7 +81,7 @@ int perInvocationPerformance(unsigned long long addrStart,
     return 0;
 }
 
-void globalPerformance(unsigned int timeout) {
+int globalPerformance(unsigned int timeout) {
     int status;
     beginSample(&samples[0]);
     sampleInProgress = 1;
@@ -93,6 +93,8 @@ void globalPerformance(unsigned int timeout) {
     sampleInProgress = 0;
     endSample(&samples[0]);
     sampleCount++;
+
+    return status;
 }
 
 int main(int argc, char **argv) {
@@ -191,7 +193,7 @@ int main(int argc, char **argv) {
             status = perInvocationPerformance(addrStart, addrEnd, maxSamples, outputFile);
         } else {
             printf("Measuring performance counters from global execution\n");
-            globalPerformance(timeout);
+            status = globalPerformance(timeout);
         }
 
         printSamples(outputFile, sampleCount - flushedSampleCount, samples,
