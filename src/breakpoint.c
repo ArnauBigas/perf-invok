@@ -1,9 +1,10 @@
 #include "debug.h"
 #include "breakpoint.h"
+#include <stdio.h>
 #include <sys/ptrace.h>
-
-#define RV_INSTR_EBREAK 0x00100073 // EBREAK Instruction
-#define RV_INSTR_CEBREAK 0x9002    // C.BREAK Instruction
+#if defined(__s390x__)
+#include <sys/uio.h>
+#endif
 
 void setBreakpoint(unsigned long pid, unsigned long long address,
                    Breakpoint *breakpoint) {
@@ -18,3 +19,20 @@ void resetBreakpoint(unsigned long pid, Breakpoint *breakpoint) {
     debug_print("resetBreakpoint 0x%016X to 0x%08X\n", breakpoint->address, breakpoint->originalData);
     ptrace(PTRACE_POKEDATA, pid, breakpoint->address, breakpoint->originalData);
 }
+
+#if defined(__s390x__)
+void displace_pc(long pid, long displ) {
+    long buf[2];
+    struct iovec iov;
+    iov.iov_len = sizeof(buf);
+    iov.iov_base = buf;
+
+    long ret = ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov);
+    long pc = buf[1];
+
+	debug_print("displace_pc from 0x%016X to 0x%016X\n", pc, pc + displ);
+
+    buf[1] = pc + displ;
+    ret = ptrace(PTRACE_SETREGSET, pid, NT_PRSTATUS, &iov);
+}
+#endif

@@ -61,6 +61,14 @@ int perInvocationPerformance(unsigned long long addrStart,
         beginSample(&samples[sampleCount - flushedSampleCount]);
         sampleInProgress = 1;
 
+        #if defined(__s390x__)
+        if (WIFSTOPPED(status)) {
+            // Z architecture advances 2 bytes the PC on SIGILL
+            if (WSTOPSIG(status) == SIGILL) {
+                displace_pc(pid, -2);
+            }
+        }
+        #endif
         ptrace(PTRACE_CONT, pid, 0, 0);
         waitpid(pid, &status, 0);
         if (WIFSTOPPED(status)) {
@@ -82,6 +90,14 @@ int perInvocationPerformance(unsigned long long addrStart,
 
         resetBreakpoint(pid, &bp);
         setBreakpoint(pid, addrStart, &bp);
+        #if defined(__s390x__)
+        if (WIFSTOPPED(status)) {
+            // Z architecture advances 2 bytes the PC on SIGILL
+            if (WSTOPSIG(status) == SIGILL) {
+                displace_pc(pid, -2);
+            }
+        }
+        #endif
         ptrace(PTRACE_CONT, pid, 0, 0);
     }
 
