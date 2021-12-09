@@ -120,9 +120,17 @@ int globalPerformance(unsigned int timeout) {
     beginSample(&samples[0]);
     sampleInProgress = 1;
 
-    ptrace(PTRACE_CONT, pid, 0, 0);
-    unsigned ret = alarm(timeout);
-    if (ret != 0) { perror("ERROR while setting timeout"); exit(EXIT_FAILURE);};
+    int ret =  ptrace(PTRACE_CONT, pid, 0, 0);
+    if (ret != 0) { perror("ERROR while setting trace"); exit(EXIT_FAILURE);};
+
+    if (timeout > 0 ) {
+        fprintf(stderr, "Timeout set to %d seconds\n", timeout);
+        ret = alarm(timeout);
+        if (ret != 0) { perror("ERROR while setting timeout"); exit(EXIT_FAILURE);};
+    } else {
+        fprintf(stderr, "No timeout set. Waiting process to finish\n");
+    }
+
     ret = waitpid(pid, &status, 0);
     if (ret == -1) { perror("ERROR while waiting"); exit(EXIT_FAILURE);};
 
@@ -233,7 +241,7 @@ int main(int argc, char **argv) {
         configureEvents(pid);
 
         if (addrStart > 0 && addrEnd > 0) {
-            fprintf(stderr, "Measuring performance counters from 0x%llx to 0x%llx (max. samples: %u).\n", addrStart, addrEnd, maxSamples);
+            fprintf(stderr, "Measuring performance counters from 0x%llx to 0x%llx (max. samples: %u)\n", addrStart, addrEnd, maxSamples);
             status = perInvocationPerformance(addrStart, addrEnd, maxSamples, outputFile);
         } else {
             fprintf(stderr, "Measuring performance counters from global execution\n");
