@@ -17,6 +17,7 @@
 #include "debug.h"
 
 #define MAX_SAMPLES 8192
+#define MAX_BREAKPOINTS 128
 
 int pid;
 Sample samples[MAX_SAMPLES];
@@ -25,6 +26,7 @@ unsigned int flushedSampleCount = 0;
 int printHeaders = 1;
 int sampleInProgress = 1;
 FILE *outputFile;
+unsigned int breakpoint_count = 0;
 
 void handler(int signum) {
     int ret = kill(pid, signum);
@@ -45,13 +47,13 @@ void handler(int signum) {
 }
 
 int perInvocationPerformance(unsigned long long addrStart,
-                              unsigned long long addrEnd,
+                              unsigned long long * addrEnd,
                               unsigned int maxSamples,
                               FILE *outputFile) {
     int status;
-    Breakpoint bp;
+    Breakpoint bp[MAX_BREAKPOINTS];
 
-    setBreakpoint(pid, addrStart, &bp);
+    setBreakpoint(pid, addrStart, &bp[0]);
     long ret = ptrace(PTRACE_CONT, pid, 0, 0);
     if (ret != 0) { perror("ERROR on initial tracing"); exit(EXIT_FAILURE);};
 
@@ -60,8 +62,9 @@ int perInvocationPerformance(unsigned long long addrStart,
         if (WIFSTOPPED(status)) {
             debug_print("%s\n", strsignal(WSTOPSIG(status)));
         }
-        resetBreakpoint(pid, &bp);
-        setBreakpoint(pid, addrEnd, &bp);
+        resetBreakpoint(pid, &bp[0]);
+
+        for(int i=0; i<breakpoint_count; i++) setBreakpoint(pid, addrEnd[i], &bp[i]);
 
         debug_print("Start sample %d\n", sampleCount);
         beginSample(&samples[sampleCount - flushedSampleCount]);
@@ -96,8 +99,8 @@ int perInvocationPerformance(unsigned long long addrStart,
             flushedSampleCount += MAX_SAMPLES;
         }
 
-        resetBreakpoint(pid, &bp);
-        setBreakpoint(pid, addrStart, &bp);
+        for(int i=0; i<breakpoint_count; i++) resetBreakpoint(pid, &bp[i]);
+        setBreakpoint(pid, addrStart, &bp[0]);
         #if defined(__s390x__)
         if (WIFSTOPPED(status)) {
             // Z architecture advances 2 bytes the PC on SIGILL
@@ -145,11 +148,12 @@ int main(int argc, char **argv) {
     assert(argc >= 2);
 
     unsigned long long addrStart = 0;
-    unsigned long long addrEnd = 0;
+    unsigned long long addrEnd[MAX_BREAKPOINTS];
     unsigned int maxSamples = UINT_MAX;
     unsigned int programStart = 1;
     unsigned int timeout = 0;
     char *output = NULL;
+    addrEnd[0] = 0;
 
     enum {
         EXPECTING_OPT, EXPECTING_ADDR_START, EXPECTING_ADDR_END,
@@ -176,7 +180,12 @@ int main(int argc, char **argv) {
                 state = EXPECTING_OPT;
                 break;
             case EXPECTING_ADDR_END:
-                addrEnd = strtoull(argv[i], NULL, 16);
+                addrEnd[breakpoint_count] = strtoull(argv[i], NULL, 16);
+                breakpoint_count++;
+                if (breakpoint_count > MAX_BREAKPOINTS) {
+                    fprintf(stderr, "Maximum number of end breakpoints is %d\n", MAX_BREAKPOINTS);
+                    exit(EXIT_FAILURE);
+                }
                 state = EXPECTING_OPT;
                 break;
             case EXPECTING_MAX_SAMPLES:
@@ -195,6 +204,8 @@ int main(int argc, char **argv) {
                 break;
         }
     }
+
+
 
     fprintf(stderr, "Executing ");
     for (int i = programStart; i < argc; i++) fprintf(stderr, "%s ", argv[i]);
@@ -240,8 +251,10 @@ int main(int argc, char **argv) {
 
         configureEvents(pid);
 
-        if (addrStart > 0 && addrEnd > 0) {
-            fprintf(stderr, "Measuring performance counters from 0x%llx to 0x%llx (max. samples: %u)\n", addrStart, addrEnd, maxSamples);
+        if (addrStart > 0 && addrEnd[0] > 0 && breakpoint_count > 0) {
+            fprintf(stderr, "Measuring performance counters from 0x%llx to ", addrStart);
+            for(int i=0; i<breakpoint_count; i++) fprintf(stderr, "0x%llx ", addrEnd[i]);
+            fprintf(stderr, "(max. samples: %u)\n", maxSamples);
             status = perInvocationPerformance(addrStart, addrEnd, maxSamples, outputFile);
         } else {
             fprintf(stderr, "Measuring performance counters from global execution\n");
