@@ -28,6 +28,33 @@ int sampleInProgress = 1;
 FILE *outputFile;
 unsigned int breakpoint_count = 0;
 
+void help(FILE *fd) {
+    if (fd == stderr){
+        fprintf(fd, "Wrong command line parameters\n");
+        fprintf(fd, "\n");
+    } else {
+        fprintf(fd, "\n");
+    }
+    fprintf(fd, "Usage:\n");
+    fprintf(fd, "\n");
+    fprintf(fd, "perf-invok -o output -begin addr -end addr [-end addr ...] [-timeout seconds] [-max samples] [-cpu cpu] [-h] -- command-to-execute\n");
+    fprintf(fd, "\n");
+    fprintf(fd, "-o name          output file name\n");
+    fprintf(fd, "-begin addr      start address of the region to measure\n");
+    fprintf(fd, "-end addr        address of the region to measure (can be specified multiple times)\n");
+    fprintf(fd, "-timeout seconds stop measuring after the specified number of seconds (default: no timeout)\n");
+    fprintf(fd, "-max samples     stop measuring after the specified number of measurements(default: no limit)\n");
+    fprintf(fd, "-cpu cpu         pin process to the specified CPU (default: 0)\n");
+    fprintf(fd, "-h:              print this help message\n");
+    fprintf(fd, "\n");
+
+    if (fd == stderr){
+        exit(EXIT_FAILURE);
+    } else {
+        exit(EXIT_SUCCESS);
+    }
+}
+
 void handler(int signum) {
     int ret = kill(pid, signum);
     if (ret != 0) { perror("ERROR killing process"); exit(EXIT_FAILURE);};
@@ -152,13 +179,14 @@ int main(int argc, char **argv) {
     unsigned int maxSamples = UINT_MAX;
     unsigned int programStart = 1;
     unsigned int timeout = 0;
+    unsigned int cpu = 0;
     char *output = NULL;
     addrEnd[0] = 0;
 
     enum {
         EXPECTING_OPT, EXPECTING_ADDR_START, EXPECTING_ADDR_END,
         EXPECTING_MAX_SAMPLES, EXPECTING_PROGRAM, EXPECTING_OUTPUT,
-        EXPECTING_TIMEOUT
+        EXPECTING_TIMEOUT, EXPECTING_CPU
     } state = EXPECTING_OPT;
 
     for (int i = 1; i < argc; i++) {
@@ -170,10 +198,13 @@ int main(int argc, char **argv) {
                 else if (strcmp(arg, "-max") == 0) state = EXPECTING_MAX_SAMPLES;
                 else if (strcmp(arg, "-o") == 0) state = EXPECTING_OUTPUT;
                 else if (strcmp(arg, "-timeout") == 0) state = EXPECTING_TIMEOUT;
-                else {
+                else if (strcmp(arg, "-cpu") == 0) state = EXPECTING_CPU;
+                else if (strcmp(arg, "-h") == 0) help(stdout);
+                else if (strcmp(arg, "--") == 0) {
                     state = EXPECTING_PROGRAM;
-                    programStart = i;
+                    programStart = i+1;
                 }
+                else help(stderr);
                 break;
             case EXPECTING_ADDR_START:
                 addrStart = strtoull(argv[i], NULL, 16);
@@ -196,6 +227,10 @@ int main(int argc, char **argv) {
                 timeout = atoi(argv[i]);
                 state = EXPECTING_OPT;
                 break;
+            case EXPECTING_CPU:
+                cpu = atoi(argv[i]);
+                state = EXPECTING_OPT;
+                break;
             case EXPECTING_OUTPUT:
                 output = argv[i];
                 state = EXPECTING_OPT;
@@ -205,20 +240,18 @@ int main(int argc, char **argv) {
         }
     }
 
-
-
-    fprintf(stderr, "Executing ");
-    for (int i = programStart; i < argc; i++) fprintf(stderr, "%s ", argv[i]);
-    fprintf(stderr, "\n");
-
-    pid = fork();
-
     cpu_set_t mask;
     CPU_ZERO(&mask);
-    CPU_SET(1, &mask);
+    CPU_SET(cpu, &mask);
+    fprintf(stderr, "Pinning process to CPU: %d\n", cpu);
     int ret = sched_setaffinity(0, sizeof(cpu_set_t), &mask);
     if (ret != 0) { perror("ERROR while setting affinity"); exit(EXIT_FAILURE);};
 
+    fprintf(stderr, "Executing '");
+    for (int i = programStart; i < argc; i++) fprintf(stderr, "%s ", argv[i]);
+    fprintf(stderr, "'\n");
+
+    pid = fork();
     if (pid == 0) {
         unsigned int numParams = argc - 3;
         char **newargs = malloc(sizeof(char*) * (numParams + 2));
