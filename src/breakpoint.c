@@ -13,10 +13,9 @@ void setBreakpoint(unsigned long pid, unsigned long long address,
                    Breakpoint *breakpoint) {
     breakpoint->address = address;
     errno = 0;
+    debug_print("setBreakpoint 0x%016llX to 0x%08X (orig 0x%08llX)\n", address, 0, breakpoint->originalData);
     breakpoint->originalData = ptrace(PTRACE_PEEKDATA, pid, address, 0);
     if (errno != 0) { perror("ERROR while setting breakpoint (read)"); exit(EXIT_FAILURE);};
-
-    debug_print("setBreakpoint 0x%016llX to 0x%08X (orig 0x%08llX)\n", address, 0, breakpoint->originalData);
     long ret = ptrace(PTRACE_POKEDATA, pid, address, 0);
     if (ret != 0) { perror("ERROR while setting breakpoint (write)"); exit(EXIT_FAILURE);};
 }
