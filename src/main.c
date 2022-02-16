@@ -37,7 +37,7 @@ void help(FILE *fd) {
     }
     fprintf(fd, "Usage:\n");
     fprintf(fd, "\n");
-    fprintf(fd, "perf-invok -o output -begin addr -end addr [-end addr ...] [-timeout seconds] [-max samples] [-cpu cpu] [-h] -- command-to-execute\n");
+    fprintf(fd, "perf-invok -o output [-begin addr] [-end addr [-end addr ...]] [-timeout seconds] [-max samples] [-cpu cpu] [-h] -- command-to-execute\n");
     fprintf(fd, "\n");
     fprintf(fd, "-o name          output file name\n");
     fprintf(fd, "-begin addr      start address of the region to measure\n");
@@ -172,12 +172,13 @@ int globalPerformance(unsigned int timeout) {
 }
 
 int main(int argc, char **argv) {
-    assert(argc >= 2);
+    if(argc < 2) help(stdout);
 
     unsigned long long addrStart = 0;
     unsigned long long addrEnd[MAX_BREAKPOINTS];
     unsigned int maxSamples = UINT_MAX;
-    unsigned int programStart = 1;
+    unsigned int programStart = 0;
+    unsigned int programStartSet = 0;
     unsigned int timeout = 0;
     unsigned int cpu = 0;
     char *output = NULL;
@@ -203,6 +204,7 @@ int main(int argc, char **argv) {
                 else if (strcmp(arg, "--") == 0) {
                     state = EXPECTING_PROGRAM;
                     programStart = i+1;
+                    programStartSet = 1;
                 }
                 else help(stderr);
                 break;
@@ -238,6 +240,24 @@ int main(int argc, char **argv) {
             case EXPECTING_PROGRAM:
                 break;
         }
+        if (programStartSet){
+            break;
+        }
+    }
+
+    if (output == NULL) {
+        fprintf(stderr, "Output is required. ");
+        help(stderr);
+    }
+
+    if (programStartSet == 0) {
+        fprintf(stderr, "Command to execute required. ");
+        help(stderr);
+    }
+
+    if (programStart == argc) {
+        fprintf(stderr, "Command to execute required. ");
+        help(stderr);
     }
 
     cpu_set_t mask;
@@ -263,7 +283,7 @@ int main(int argc, char **argv) {
         ret = execvp(argv[programStart], newargs);
         if (ret != 0) { perror("ERROR executing process"); exit(EXIT_FAILURE);};
     } else {
-        outputFile = (output != NULL ? fopen(output, "w") : stderr);
+        outputFile = (output != NULL ? fopen(output, "w") : NULL);
         assert(outputFile != NULL);
 
         struct sigaction sa;
