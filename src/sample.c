@@ -188,7 +188,7 @@ void endSample(Sample *sample) {
 
     char buf[4096];
     struct read_format *rf = (struct read_format *) buf;
-    read(fdCycles, buf, sizeof(buf));
+    if (read(fdCycles, buf, sizeof(buf)) == 0) { perror("ERROR while reading perf counters"); exit(EXIT_FAILURE); };
     for (unsigned int i = 0; i < rf->nr; i++) {
         unsigned long long id = rf->values[i].id;
         unsigned long long value = rf->values[i].value;

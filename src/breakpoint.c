@@ -9,6 +9,19 @@
 #include <sys/uio.h>
 #endif
 
+// Breakpoint size, in bytes. Should be the smallest amount of bytes required
+// for a breakpoint by a given architecture.
+
+#if defined(__riscv) // RISC-V (Valid with or without C extension)
+#define BREAKPOINT_SIZE 2
+#elif defined(__s390x__) // System Z
+#define BREAKPOINT_SIZE 4
+#elif defined(__PPC64__) || defined(__ppc64__) || defined(_ARCH_PPC64) // PPC64
+#define BREAKPOINT_SIZE 4
+#else // Default
+#define BREAKPOINT_SIZE 4
+#endif
+
 void setBreakpoint(unsigned long pid, unsigned long long address,
                    Breakpoint *breakpoint) {
     breakpoint->address = address;
@@ -16,7 +29,8 @@ void setBreakpoint(unsigned long pid, unsigned long long address,
     debug_print("setBreakpoint 0x%016llX to 0x%08X (orig 0x%08llX)\n", address, 0, breakpoint->originalData);
     breakpoint->originalData = ptrace(PTRACE_PEEKDATA, pid, address, 0);
     if (errno != 0) { perror("ERROR while setting breakpoint (read)"); exit(EXIT_FAILURE);};
-    long ret = ptrace(PTRACE_POKEDATA, pid, address, 0);
+    unsigned long long mask = ~(BREAKPOINT_SIZE == sizeof(long long) ? -1 : ((1llu << (BREAKPOINT_SIZE * 8)) - 1));
+    long ret = ptrace(PTRACE_POKEDATA, pid, address, breakpoint->originalData & mask);
     if (ret != 0) { perror("ERROR while setting breakpoint (write)"); exit(EXIT_FAILURE);};
 }
 
