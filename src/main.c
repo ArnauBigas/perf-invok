@@ -111,7 +111,15 @@ int perInvocationPerformance(unsigned long long * addrStart,
         ret = waitpid(pid, &status, 0);
         if (ret == -1) { perror("ERROR during waiting"); exit(EXIT_FAILURE);};
         if (WIFSTOPPED(status)) {
-            debug_print("%s\n", strsignal(WSTOPSIG(status)));
+            debug_print("Process stopped: %s\n", strsignal(WSTOPSIG(status)));
+        }
+        if (WIFEXITED(status)) {
+            debug_print("Process exit code: %d\n", WEXITSTATUS(status));
+            return WEXITSTATUS(status);
+        }
+        if (WIFSIGNALED(status)) {
+            debug_print("Process signaled: %s\n", strsignal(WTERMSIG(status)));
+            exit(EXIT_FAILURE);
         }
         sampleInProgress = 0;
 
