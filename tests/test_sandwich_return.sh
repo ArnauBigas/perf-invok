@@ -17,6 +17,10 @@ elif [ "$machine" == "ppc64le" ]; then
     marks_cmd=chop-marks-ppc64
     return_instr="4e800020"
     return_instr_len=8
+elif [ "$machine" == "s390x" ]; then
+    marks_cmd=chop-marks-sysz
+    return_instr="07fe"
+    return_instr_len=4
 else
     echo "Unsupported architecture: $machine"
     cleanup
@@ -53,14 +57,26 @@ echo "Binary contents of the test program are OK."
 
 output=$(cat $log_stdout_file)
 
-if [ "${output:$string_offset:$string_length}" != "deadbeef$return_instr" ]; then
-    # "deadbeef" is the hard-coded sentinel in the binary
-    # Because there is no breakpoint, the instruction appears in the binary dump
-    echo "Unexpected binary contents in the test program. Did something from the test bench break?"
-    echo "Expected: deadbeef$return_instr"
-    echo "Actual: ${output:$string_offset:$string_length}"
-    cleanup
-    exit 1
+if [ "$machine" == "s390x" ]; then
+    if [ "${output}" != "${return_instr}deadbeefdead" ]; then
+        # "deadbeef" is the hard-coded sentinel in the binary
+        # Because there is no breakpoint, the instruction appears in the binary dump
+        echo "Unexpected binary contents in the test program. Did something from the test bench break?"
+        echo "Expected: ${return_instr}deadbeefdead"
+        echo "Actual  : ${output}"
+        cleanup
+        exit 1
+    fi
+else
+    if [ "${output:$string_offset:$string_length}" != "deadbeef$return_instr" ]; then
+        # "deadbeef" is the hard-coded sentinel in the binary
+        # Because there is no breakpoint, the instruction appears in the binary dump
+        echo "Unexpected binary contents in the test program. Did something from the test bench break?"
+        echo "Expected: deadbeef$return_instr"
+        echo "Actual  : ${output:$string_offset:$string_length}"
+        cleanup
+        exit 1
+    fi
 fi
 
 timeout 5 ./perf-invok -o $csv_file $($marks_cmd ./sandwich_return sandwich_return) -- ./sandwich_return 2> $log_stderr_file 1> $log_stdout_file
@@ -102,21 +118,40 @@ echo "Row count OK."
 
 output=$(cat $log_stdout_file)
 
-if [ "${output:$string_offset:$string_length}" != "deadbeef$string_breakpoint" ]; then
-    # Because this time the binary was run with a breakpoint in place, the
-    # return instruction isn't present anymore and instead we find a bunch of
-    # zeroes (the breakpoint). 0xdeadbeef should still be present. If it isn't,
-    # that means the program incorrectly sets breakpoints to the code further
-    # below the instruction where the breakpoint should actually be.
-    # NOTE: This test probably only works on little-endian architectures?
+if [ "$machine" == "s390x" ]; then
+    if [ "${output}" != "${string_breakpoint}deadbeefdead" ]; then
+        # Because this time the binary was run with a breakpoint in place, the
+        # return instruction isn't present anymore and instead we find a bunch of
+        # zeroes (the breakpoint). 0xdeadbeef should still be present. If it isn't,
+        # that means the program incorrectly sets breakpoints to the code further
+        # below the instruction where the breakpoint should actually be.
+        # NOTE: This test probably only works on little-endian architectures?
 
-    echo "The breakpoint encompases more than the targetted return instruction."
-    echo "This could cause unexpected problems when, within the same function,"
-    echo "there are instructions to be executed below the return instruction."
-    echo "Expected: deadbeef$string_breakpoint"
-    echo "Actual: ${output:$string_offset:$string_length}"
-    cleanup
-    exit 1
+        echo "The breakpoint encompases more than the targetted return instruction."
+        echo "This could cause unexpected problems when, within the same function,"
+        echo "there are instructions to be executed below the return instruction."
+        echo "Expected: ${string_breakpoint}deadbeefdead"
+        echo "Actual: ${output}"
+        cleanup
+        exit 1
+    fi
+else
+    if [ "${output:$string_offset:$string_length}" != "deadbeef$string_breakpoint" ]; then
+        # Because this time the binary was run with a breakpoint in place, the
+        # return instruction isn't present anymore and instead we find a bunch of
+        # zeroes (the breakpoint). 0xdeadbeef should still be present. If it isn't,
+        # that means the program incorrectly sets breakpoints to the code further
+        # below the instruction where the breakpoint should actually be.
+        # NOTE: This test probably only works on little-endian architectures?
+
+        echo "The breakpoint encompases more than the targetted return instruction."
+        echo "This could cause unexpected problems when, within the same function,"
+        echo "there are instructions to be executed below the return instruction."
+        echo "Expected: deadbeef$string_breakpoint"
+        echo "Actual: ${output:$string_offset:$string_length}"
+        cleanup
+        exit 1
+    fi
 fi
 
 echo "Breakpoint positioning OK."
