@@ -24,11 +24,18 @@ sandwich_return: test_programs/sandwiched_return.c  test_programs/sandwiched_ret
 else ifeq ($(shell uname -m),ppc64le)
 sandwich_return: test_programs/sandwiched_return.c  test_programs/sandwiched_return_ppc64.s
 	gcc -O0 -no-pie -fno-pic -o $@ $^
+else ifeq ($(shell uname -m),s390x)
+sandwich_return: test_programs/sandwiched_return.c  test_programs/sandwiched_return_s390x.s
+	gcc -O0 -no-pie -fno-pic -o $@ $^
+else
+	$(error Architecture not supported)
 endif
 
-test: $(TEST_PROGRAMS)
-	tests/test_vector_add.sh
-	tests/test_sandwich_return.sh
+test: all $(TEST_PROGRAMS)
+	@echo Testing generic code...
+	@tests/test_vector_add.sh
+	@echo Testing sandwich return...
+	@tests/test_sandwich_return.sh
 
 install: perf-invok
 	cp perf-invok $(INSTALLDIR)/perf-invok
