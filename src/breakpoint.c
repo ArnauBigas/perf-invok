@@ -15,7 +15,7 @@
 #if defined(__riscv) // RISC-V (Valid with or without C extension)
 #define BREAKPOINT_SIZE 2
 #elif defined(__s390x__) // System Z
-#define BREAKPOINT_SIZE 4
+#define BREAKPOINT_SIZE 2
 #elif defined(__PPC64__) || defined(__ppc64__) || defined(_ARCH_PPC64) // PPC64
 #define BREAKPOINT_SIZE 4
 #else // Default
@@ -29,7 +29,14 @@ void setBreakpoint(unsigned long pid, unsigned long long address,
     debug_print("setBreakpoint 0x%016llX to 0x%08X (orig 0x%08llX)\n", address, 0, breakpoint->originalData);
     breakpoint->originalData = ptrace(PTRACE_PEEKDATA, pid, address, 0);
     if (errno != 0) { perror("ERROR while setting breakpoint (read)"); exit(EXIT_FAILURE);};
+#if defined(__s390x__)
+    unsigned long long mask = 0x0000FFFFFFFFFFFF;
+#else
     unsigned long long mask = ~(BREAKPOINT_SIZE == sizeof(long long) ? -1 : ((1llu << (BREAKPOINT_SIZE * 8)) - 1));
+#endif
+    debug_print("Breakpoint mask: 0x%016llX\n", mask);
+    debug_print("Breakpoint previous data: 0x%016llX\n", breakpoint->originalData);
+    debug_print("Breakpoint new data: 0x%016llX\n", breakpoint->originalData & mask);
     long ret = ptrace(PTRACE_POKEDATA, pid, address, breakpoint->originalData & mask);
     if (ret != 0) { perror("ERROR while setting breakpoint (write)"); exit(EXIT_FAILURE);};
 }
